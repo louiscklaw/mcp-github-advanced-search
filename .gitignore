@@ -1,0 +1,6 @@
+**/*.del
+**/*.bak
+**/*.log
+
+__pycache__
+.venv
