@@ -10,6 +10,10 @@ A powerful Model Context Protocol (MCP) server that enables Large Language Model
 
 The GitHub Advanced Search (G.A.S.) MCP server provides LLMs with sophisticated GitHub search capabilities that go beyond standard API limitations. Using web automation with Playwright, it enables deep code discovery, pattern analysis, and content retrieval across the entire GitHub ecosystem. This version includes enhanced support for DeepSeek models, providing tailored search results and structured JSON output.
 
+## Demo
+
+[youtube link to demo](https://youtu.be/kY7s_1GzZ3A)
+
 ### Key Features
 
 - 🔍 **Advanced GitHub Search**: Search by keywords, file names, and complex filters
