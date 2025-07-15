@@ -12,7 +12,26 @@ The GitHub Advanced Search (G.A.S.) MCP server provides LLMs with sophisticated 
 
 ## Demo
 
+> tested using vscode + cline + openrouter:deepseek/deepseek-r1-0528:free
+
 [youtube link to demo](https://youtu.be/kY7s_1GzZ3A)
+
+### Example1
+
+```prompt
+
+# step1: init gas
+gas_entrypoint
+
+# step2: feed model
+gas_search_code
+file_name: clinerules
+
+# step3: make your wish
+You are now have better knowledge of `clinerules`
+please keep the current file format and deep level
+enhance the `<file-path-to-clinerules>`
+```
 
 ### Key Features
 
