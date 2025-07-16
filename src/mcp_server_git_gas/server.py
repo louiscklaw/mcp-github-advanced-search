@@ -42,6 +42,14 @@ from playwright.async_api import async_playwright
 
 # Default number of context lines to show in diff output
 DEFAULT_CONTEXT_LINES = 3
+ITEM_PER_BATCH = 3
+
+PROBE_RESULT_JS = "".join(open("./probe_result.js", "r").readlines())
+PARSE_RESULT_JS = "".join(open("./parse_result.js", "r").readlines())
+
+
+SEARCH_CODE_EXPLAIN_MD = "".join(open("./SEARCH_CODE_EXPLAIN.md").readlines())
+GET_REMAINING_RESULT_MD = "".join(open("./GET_REMAINING_RESULT.md").readlines())
 
 
 class GitHelloworld(BaseModel):
@@ -139,35 +147,14 @@ async def git_helloworld(dict_input) -> str:
 
 
 async def gas_entrypoint() -> str:
+    temp = ""
+    with open("./gas_entrypoint.md", "r") as f_md:
+        temp = "".join(f_md.readlines())
 
     return json.dumps(
         {
-            "markdown": "this is a mcp that help user to search github search with advanced filter\n"
-            "the project name is `mcp_server_git_gas` `git_gas`\n"
-            "the available command are `gas_search_code` and `get_remaining_result`\n"
-            "the operation flow is like below:\n"
-            "\n"
-            "```mermaid \n"
-            "graph TD \n"
-            "  a((start)) \n"
-            "  d((end)) \n"
-            '  b("search code with filter (gas_search_code)") \n'
-            '  c("return search result") \n'
-            '  c1("is the result finished ?") \n'
-            '  c2("use get_remaining_result to list remaining result") \n'
-            "  a --> b --> c --> c1 -- Yes --> d \n"
-            "  c1 -- No --> c2 \n"
-            "  c2 --> c1 \n"
-            "``` \n"
-            "\n"
-            "this mcp work best with `sequentialthinking` `memory` and `structuredArgumentation` \n"
-            "\n"
-            "when you found something you are not understand, \n"
-            "you are encourage to do `git_gas` again for better understanding.\n"
-            "\n"
-            "\n"
-            "\n",
-            "instructions": "please ask user to provide `keyword` and `file_name` to start search",
+            "reply_md": temp,
+            "next_instructions_md": "please ask user to provide `keyword` and `file_name` to start search",
         }
     )
 
@@ -187,7 +174,7 @@ async def get_remaining_result(dict_input) -> str:
             [
                 *output_meta[START_ID : START_ID + 5],
                 {
-                    "instructions": f"result truncated, please use `get_remaining_result` with start_id={START_ID+5} to get the remaining result."
+                    "next_instruction_md": f"result truncated, please use `get_remaining_result` with start_id={START_ID+5} to get the remaining result."
                 },
             ]
         )
@@ -195,7 +182,7 @@ async def get_remaining_result(dict_input) -> str:
         return json.dumps(
             [
                 *output_meta[START_ID : START_ID + 5],
-                {"instructions": "that all, thanks."},
+                {"next_instruction_md": "all result returned, show to user 'all result returned'"},
             ]
         )
 
@@ -221,7 +208,7 @@ async def gas_search_code(dict_input) -> str:
     SEARCH_FILE_NAME = dict_input["file_name"] or SEARCH_FILE_NAME
     # SEARCH_FILE_PATH = dict_input["file_path"] or SEARCH_FILE_PATH
     # SEARCH_LANGUAGE = dict_input["language"] or SEARCH_LANGUAGE
-    max_record_return = 20
+    max_record_return = 10
 
     SEARCH_KEYWORD = SEARCH_KEYWORD.strip()
     SEARCH_FILE_NAME = SEARCH_FILE_NAME.strip()
@@ -231,7 +218,7 @@ async def gas_search_code(dict_input) -> str:
     RESULTS_JSON = {}
     REPOSITORY_LINKS = []
     FILE_LINKS = []
-    RAW_UESR_CONTENT_LINKS = []
+    RAW_USER_CONTENT_LINKS = []
     FILE_CONTENTS = []
     output_meta = []
 
@@ -280,46 +267,7 @@ async def gas_search_code(dict_input) -> str:
         await page.screenshot(path=DEBUG_PNG_PATH)
 
         # probe max page
-        RESULTS_STR = await page.evaluate(
-            """async () => {
-                  RESULT_OK = true;
-
-                  LOGGED_IN_CHECK = false
-                  try {
-                    document.querySelectorAll('span[data-component="buttonContent"]>span[data-component="text"]')[3].textContent;
-                    console.log("not logged in");
-                    RESULT_OK = false;
-                  } catch (error){
-                    LOGGED_IN_CHECK = true;
-                    console.log("logged in");
-                  }
-
-                  MAX_PAGE_NUM = 0
-                  try {
-                    MAX_PAGE_NUM = document.querySelectorAll('nav')[2].textContent.replace('Next','').replace('Previous','').slice(-1);
-                  } catch (error){
-                    MAX_PAGE_NUM = -1;
-                    RESULT_OK = false;
-                  }
-
-                  FILE_FOUND_NUM = 0
-                  try {
-                    FILE_FOUND_NUM = document.querySelectorAll('div[data-testid="search-sub-header"] h2')[0].textContent
-                      .toLowerCase()
-                      .replace(' files','')
-                      .replace(' file','')
-                      .replace('more than ','')
-                      .replace('m','')
-                      .replace('k','')
-                      .trim();
-                  } catch (error){
-                    FILE_FOUND_NUM = -1;
-                    RESULT_OK = false;
-                  }
-
-                  return JSON.stringify({RESULT_OK, LOGGED_IN_CHECK, MAX_PAGE_NUM, FILE_FOUND_NUM})
-                }"""
-        )
+        RESULTS_STR = await page.evaluate(PROBE_RESULT_JS)
 
         RESULT_JSON = json.loads(RESULTS_STR)
         RESULT_OK = RESULT_JSON["RESULT_OK"]
@@ -370,30 +318,7 @@ async def gas_search_code(dict_input) -> str:
 
             await page.wait_for_load_state("load", timeout=0)
 
-            RESULTS_STR = await page.evaluate(
-                """async () => {
-                response = await fetch(location.href)
-
-                LOGGED_IN_CHECK = false
-                try {
-                  document.querySelectorAll('span[data-component="buttonContent"]>span[data-component="text"]')[3].textContent
-                  console.log("not logged in")
-                } catch (error){
-                  LOGGED_IN_CHECK = true
-                  console.log("logged in")
-                }
-
-                REPOSITORY_LINKS_FETCHED = []
-                document.querySelectorAll('div.search-title a[aria-keyshortcuts="Alt+ArrowUp"]')
-                  .forEach(a => REPOSITORY_LINKS_FETCHED = [...REPOSITORY_LINKS_FETCHED, a.href]);
-
-                FILE_LINKS_FETCHED = []
-                document.querySelectorAll('div.search-title a:not([aria-keyshortcuts="Alt+ArrowUp"]')
-                  .forEach(a => FILE_LINKS_FETCHED = [...FILE_LINKS_FETCHED, a.href]);
-
-                return JSON.stringify({LOGGED_IN_CHECK,REPOSITORY_LINKS_FETCHED, FILE_LINKS_FETCHED})
-              }"""
-            )
+            RESULTS_STR = await page.evaluate(PARSE_RESULT_JS)
 
             RESULTS_JSON = json.loads(RESULTS_STR)
             LOGGED_IN_CHECK = RESULTS_JSON["LOGGED_IN_CHECK"]
@@ -409,19 +334,19 @@ async def gas_search_code(dict_input) -> str:
                 ]
 
             else:
-                print("not loggin, break")
+                print("not logged in, break")
                 break
 
         await browser.close()
 
         if len(FILE_LINKS) > 0:
             print("converting links")
-            RAW_UESR_CONTENT_LINKS = list(
+            RAW_USER_CONTENT_LINKS = list(
                 map(lambda x: convertFileLinkToRawGithubUserContentLink(x), FILE_LINKS)
             )
 
             async with aiohttp.ClientSession() as session:
-                tasks = [fetch_data(session, url) for url in RAW_UESR_CONTENT_LINKS]
+                tasks = [fetch_data(session, url) for url in RAW_USER_CONTENT_LINKS]
                 results = await asyncio.gather(*tasks)
                 FILE_CONTENTS = results
 
@@ -430,7 +355,7 @@ async def gas_search_code(dict_input) -> str:
                 {
                     "REPOSITORY_LINK": REPOSITORY_LINKS[i],
                     "FILE_LINK": FILE_LINKS[i],
-                    "RAW_UESR_CONTENT_LINK": RAW_UESR_CONTENT_LINKS[i],
+                    "RAW_USER_CONTENT_LINK": RAW_USER_CONTENT_LINKS[i],
                     "FILE_CONTENT": FILE_CONTENTS[i],
                 }
             )
@@ -438,18 +363,18 @@ async def gas_search_code(dict_input) -> str:
     with open("/tmp/result.json", "w") as f:
         json.dump(output_meta, f)
 
-    if len(output_meta) > 10:
+    if len(output_meta) > ITEM_PER_BATCH:
         return json.dumps(
             [
-                *output_meta[0:10],
+                *output_meta[0:ITEM_PER_BATCH],
                 {
-                    "instructions": "result truncated, please use `get_remaining_result` with start_id=10 to get the remaining result."
+                    "next_instruction_md": f"result truncated, please use `get_remaining_result` with start_id={ITEM_PER_BATCH} to get the remaining result."
                 },
             ]
         )
     else:
         return json.dumps(
-            [*output_meta[0:10], {"instructions": "all result returned."}]
+            [*output_meta[0:ITEM_PER_BATCH], {"instructions": "all result returned."}]
         )
 
 
@@ -488,37 +413,12 @@ async def serve(repository: Path | None) -> None:
             # ),
             Tool(
                 name=GitTools.SEARCH_CODE,
-                description="This is a utilities that search github with advanced filters\n"
-                "(e.g. keyword)\n"
-                "\n"
-                "the result is in json format with below fields"
-                "\n"
-                "[{\n"
-                '"REPOSITORY_LINK": <repository-found>,\n'
-                '"FILE_LINK": <file-found>,\n'
-                '"RAW_UESR_CONTENT_LINK": <download-link-to-the-file>,\n'
-                '"FILE_CONTENT": <downloaded-content>\n'
-                "},\n"
-                '{...},{"instructions": <contains-the-instruction-to-get-the-remaining-result>}]\n'
-                "when you use this, please ensure you follow the `instructions` to collect all results.\n"
-                "`memory`, `sequential-thinking` and `structured-argumentation` may help when you deal with the result",
+                description=SEARCH_CODE_EXPLAIN_MD,
                 inputSchema=GasSearchCode.model_json_schema(),
             ),
             Tool(
                 name=GitTools.GET_REMAINING_RESULT,
-                description="This is a tools to get the remaining data searched by `gas_search_code`\n"
-                "\n"
-                "the result is in json format with below fields"
-                "\n"
-                "[{\n"
-                '"REPOSITORY_LINK": <repository-found>,\n'
-                '"FILE_LINK": <file-found>,\n'
-                '"RAW_UESR_CONTENT_LINK": <download-link-to-the-file>,\n'
-                '"FILE_CONTENT": <downloaded-content>\n'
-                "},\n"
-                '{...},{"instructions": <contains-the-instruction-to-get-the-remaining-result>}]\n'
-                "when you use this, please ensure you follow the `instructions` to collect all results.\n"
-                "`memory`, `sequential-thinking` and `structured-argumentation` may help when you deal with the result",
+                description=GET_REMAINING_RESULT_MD,
                 inputSchema=GetRemainingResult.model_json_schema(),
             ),
         ]

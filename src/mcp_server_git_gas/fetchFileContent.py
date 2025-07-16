@@ -28,6 +28,7 @@ def fetchFileContent(user_content_link):
                 "upgrade-insecure-requests": "1",
             },
         ).text
+
     except Exception as e:
         print(e)
         sys.exit()

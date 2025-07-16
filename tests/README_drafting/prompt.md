@@ -2,6 +2,10 @@ call `gas_entrypoint` to initialize yourself
 
 ---
 
+fetch the content of `http://www.example.com` thanks
+
+---
+
 Hi,
 
 please use `gas_search_code` with below json
